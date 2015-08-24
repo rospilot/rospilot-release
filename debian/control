@@ -1,0 +1,12 @@
+Source: ros-jade-rospilot
+Section: misc
+Priority: extra
+Maintainer: Christopher Berner <christopherberner@gmail.com>
+Build-Depends: debhelper (>= 9.0.0), libavcodec-dev, libavformat-dev, libavutil-dev, libgphoto2-dev, libmicrohttpd-dev, libnl-3-dev, libnl-genl-3-dev, libswscale-dev, ros-jade-catkin, ros-jade-geometry-msgs, ros-jade-message-generation, ros-jade-roscpp, ros-jade-roslint, ros-jade-sensor-msgs, ros-jade-std-msgs, ros-jade-std-srvs
+Homepage: 
+Standards-Version: 3.9.2
+
+Package: ros-jade-rospilot
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, dnsmasq, gdal-bin, hostapd, libnl-3-200, libnl-genl-3-200, mapnik-utils, osm2pgsql, postgresql-9.3-postgis-2.1, postgresql-contrib-9.3, postgresql-server-dev-9.3, python-cherrypy3, python-colorama, python-mapnik2, python-psutil, ros-jade-geometry-msgs, ros-jade-mavlink, ros-jade-message-runtime, ros-jade-rosbash, ros-jade-rosbridge-suite, ros-jade-roslaunch, ros-jade-rospy, ros-jade-sensor-msgs, ros-jade-std-msgs, ros-jade-std-srvs, ros-jade-vision-opencv, tilestache
+Description: rospilot
