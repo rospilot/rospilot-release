@@ -38,13 +38,14 @@ namespace rospilot {
 
 using namespace std::chrono;
 
-SoftwareVideoRecorder::SoftwareVideoRecorder(PixelFormat pixelFormat, H264Settings settings)
+SoftwareVideoRecorder::SoftwareVideoRecorder(PixelFormat pixelFormat, H264Settings settings, std::string mediaPath)
 {
     av_register_all();
     this->width = settings.width;
     this->height = settings.height;
     this->pixelFormat = pixelFormat;
     this->settings = settings;
+    this->tempFilename = mediaPath + "/.tmp.mp4";
 }
 
 void SoftwareVideoRecorder::addFrame(sensor_msgs::CompressedImage *image, bool keyFrame)
@@ -112,7 +113,6 @@ AVStream *SoftwareVideoRecorder::createVideoStream(AVFormatContext *oc)
     }
 
     c = stream->codec;
-    avcodec_get_context_defaults3(c, codec);
 
     c->codec_id = AV_CODEC_ID_H264;
     c->bit_rate = this->settings.bit_rate;
@@ -141,6 +141,10 @@ AVStream *SoftwareVideoRecorder::createVideoStream(AVFormatContext *oc)
     c->pix_fmt = this->pixelFormat;
     c->flags |= CODEC_FLAG_GLOBAL_HEADER;
 
+    if (avcodec_open2(c, codec, nullptr) < 0) {
+        ROS_ERROR("could not open codec");
+    }
+
     return stream;
 }
 
@@ -149,11 +153,6 @@ bool SoftwareVideoRecorder::start(const char *name)
     AVCodecID codecId = AV_CODEC_ID_H264;
     std::lock_guard<std::mutex> guard(lock);
     filename = std::string(name);
-    char tempname[] = "/tmp/XXXXXX";
-    if (mkstemp(tempname) == -1) {
-        ROS_FATAL("Cannot create temp directory to save video");
-    }
-    tempFilename = std::string(tempname);
     formatContext = avformat_alloc_context();
     formatContext->oformat = av_guess_format(nullptr, name, nullptr);
 
@@ -165,6 +164,9 @@ bool SoftwareVideoRecorder::start(const char *name)
         av_opt_set_defaults(formatContext->priv_data);
     }
 
+    // Clear the file before we start writing
+    remove(tempFilename.c_str());
+
     strncpy(formatContext->filename, 
             tempFilename.c_str(),
             sizeof(formatContext->filename));
@@ -174,9 +176,6 @@ bool SoftwareVideoRecorder::start(const char *name)
                 formatContext->oformat->long_name);
     }
     videoStream = createVideoStream(formatContext);
-    if (avcodec_open2(videoStream->codec, nullptr, nullptr) < 0) {
-        ROS_ERROR("could not open codec");
-    }
     av_dump_format(formatContext, 0, tempFilename.c_str(), 1);
 
     if (avio_open(&formatContext->pb, 
