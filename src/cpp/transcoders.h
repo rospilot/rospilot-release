@@ -26,6 +26,7 @@
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <third_party/mfc/io_dev.h>
+#include <turbojpeg.h>
 }
 
 namespace rospilot {
@@ -53,6 +54,7 @@ private:
     // Bridge to get output from MFC
     io_dev *outputBridge;
     io_dev *deviceChain[3];
+    int numPixels;
 
     void tryExtractSPSandPPS(std::vector<uint8_t> &data);
 
@@ -86,6 +88,14 @@ private:
 
 class JpegDecoder
 {
+public:
+    virtual bool decodeInPlace(sensor_msgs::CompressedImage *image) = 0;
+
+    virtual ~JpegDecoder() {};
+};
+
+class FFmpegJpegDecoder : public JpegDecoder
+{
 private:
     int width;
     int height;
@@ -98,11 +108,28 @@ private:
     int outputBufferSize = 1;
 
 public:
-    bool decodeInPlace(sensor_msgs::CompressedImage *image);
+    bool decodeInPlace(sensor_msgs::CompressedImage *image) override;
 
-    JpegDecoder(int width, int height, PixelFormat outputPixelFormat);
+    FFmpegJpegDecoder(int width, int height, PixelFormat outputPixelFormat);
 
-    ~JpegDecoder();
+    ~FFmpegJpegDecoder() override;
+};
+
+class TurboJpegDecoder : public JpegDecoder
+{
+private:
+    tjhandle handle;
+    int width;
+    int height;
+    uint8_t *outputBuffer = new uint8_t[1];
+    int outputBufferSize = 1;
+
+public:
+    bool decodeInPlace(sensor_msgs::CompressedImage *image) override;
+
+    TurboJpegDecoder(int width, int height, PixelFormat outputPixelFormat);
+
+    ~TurboJpegDecoder() override;
 };
 
 }
