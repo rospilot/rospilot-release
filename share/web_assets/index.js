@@ -87,6 +87,9 @@ angular.module('rospilot', ['ngRoute', 'ngResource'])
           set: $rosservice('/rospilot/set_mode', 'rospilot/SetBasicMode')
       };
 })
+.factory('VisionTargets', function ($rostopic) {
+      return $rostopic('/rospilot/camera/vision_targets', 'rospilot/VisionTargets');
+})
 .factory('Position', function ($rostopic) {
       return $rostopic('/rospilot/gpsraw', 'rospilot/GPSRaw');
 })
@@ -114,8 +117,15 @@ angular.module('rospilot', ['ngRoute', 'ngResource'])
     var shutdownService = $rosservice('/rospilot/shutdown', 'std_srvs/Empty');
     var globService = $rosservice('/rospilot/glob', 'rospilot/Glob');
     $scope.selected_video_device = '';
+    $scope.detector_enabled = false;
     $scope.video_devices = [];
     $scope.shutdown = shutdownService;
+    $rosparam.get('/rospilot/camera/detector_enabled',
+        function(value) {
+            $scope.detector_enabled = value;
+            $scope.$apply();
+        }
+    );
     $rosparam.get('/rospilot/camera/video_device',
         function(value) {
             $scope.selected_video_device = value;
@@ -157,6 +167,10 @@ angular.module('rospilot', ['ngRoute', 'ngResource'])
         if (new_device) {
             $rosparam.set('/rospilot/camera/video_device', new_device);
         }
+    });
+
+    $scope.$watch('detector_enabled', function(value) {
+        $rosparam.set('/rospilot/camera/detector_enabled', value);
     });
 })
 .controller('waypoints', function ($scope, $timeout, Waypoints) {
@@ -393,7 +407,7 @@ angular.module('rospilot', ['ngRoute', 'ngResource'])
     }]
   });
 })
-.controller('camera', function($scope, $timeout, $http, $rosparam, Media, Camera) {
+.controller('camera', function($scope, $timeout, $http, $rosparam, Media, Camera, VisionTargets) {
   $scope.media = [];
   $scope.fps = 0;
 
@@ -419,11 +433,21 @@ angular.module('rospilot', ['ngRoute', 'ngResource'])
 
   // Generate a random client id for fetching the stream
   var clientId = Math.floor(Math.random() * 1000 * 1000 * 1000);
-  var player = new Player({size: {height: 480, width: 640}});
+  var videoWidth = 640;
+  var videoHeight = 480;
+  var player = new Player({size: {height: videoHeight, width: videoWidth}});
 
   var fpsStartTime = new Date().getTime();
   var frameCount = 0;
-  player.onPictureDecoded = function() {
+  var renderer = PIXI.autoDetectRenderer(videoWidth, videoHeight, {transparent: true});
+  player.onPictureDecoded = function(data, width, height) {
+      if (width != videoWidth || height != videoHeight) {
+          renderer.resize(width, height);
+          videoWidth = width;
+          videoHeight = height;
+          document.getElementById('video').style.width = width + "px";
+          document.getElementById('video').style.height = height + "px";
+      }
       frameCount++;
       var currentTime = new Date().getTime();
       var deltaSeconds = (currentTime - fpsStartTime) / 1000.0
@@ -434,7 +458,36 @@ angular.module('rospilot', ['ngRoute', 'ngResource'])
       }
   };
 
+  document.querySelector('#video').appendChild(renderer.view);
+  renderer.view.style.zIndex = "2";
+
+  // create the root of the scene graph
+  var stage = new PIXI.Container();
+  var textObjs = new Map();
+  VisionTargets.subscribe(function(message) {
+      var targetIds = new Set();
+      for (let target of message.targets) {
+          targetIds.add(target.id);
+          if (!textObjs.has(target.id)) {
+              textObjs.set(target.id, new PIXI.Text(target.description, {fill: 'red'}));
+              stage.addChild(textObjs.get(target.id));
+          }
+          var textObj = textObjs.get(target.id);
+          textObj.visible = true;
+          textObj.x = videoWidth * (target.x + 1) / 2.0;
+          textObj.y = videoHeight * (1 - target.y) / 2.0;
+      }
+      for (let [key, value] of textObjs) {
+          if (!targetIds.has(key)) {
+              // Hide element rather than removing it. Because adding/removing is more expensive
+              value.visible = false;
+          }
+      }
+      renderer.render(stage);
+  });
+
   document.querySelector('#video').appendChild(player.canvas);
+  player.canvas.style.zIndex = "1";
   var h264Url = 'http://' + server_name + ':8666/h264/' + clientId;
   
   function nextFrame() {
