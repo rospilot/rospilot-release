@@ -30,3 +30,14 @@ body {
     color: white;
     cursor: pointer;
 }
+
+#video {
+    width: 640px;
+    height: 480px;
+}
+
+#video canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+}
