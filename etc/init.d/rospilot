@@ -59,7 +59,7 @@ case "$1" in
   uninstall)
     uninstall
     ;;
-  restart)
+  retart)
     stop
     start
     ;;
