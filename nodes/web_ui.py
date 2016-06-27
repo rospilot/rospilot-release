@@ -23,59 +23,43 @@ roslib.load_manifest('rospilot')
 import rospy
 import json
 import cherrypy
+import threading
 import os
-import re
 import glob
 import std_srvs.srv
 import rospilot.srv
+import sensor_msgs.msg
 import urllib2
-import cv2
+import time
+import pkg_resources
 from optparse import OptionParser
-from catkin.find_in_workspaces import find_in_workspaces
 
-STATIC_PATH = find_in_workspaces(['share'], 'rospilot',
-                                 'share/web_assets/', first_match_only=True)[0]
+STATIC_PATH = pkg_resources.resource_filename('rospilot.assets', '')
 
 PORT_NUMBER = 8085
 
 
 class API(object):
-    def __init__(self, media_path):
-        self.media_path = media_path
+    def __init__(self, node):
+        self.node = node
 
     @cherrypy.expose
-    def media(self, id=None):
-        if cherrypy.request.method == "DELETE":
-            if not re.match(r"([a-z]+\.)?[a-zA-Z0-9_-]+\.\w{2,5}", id):
-                rospy.logwarn("Ignoring request to delete %s", id)
-                return
-            os.remove(self.media_path + "/" + id)
-        elif cherrypy.request.method == "GET":
-            paths = os.listdir(self.media_path)
-            objs = []
-            for path in reversed(sorted(paths)):
-                if path.endswith('jpg'):
-                    objs.append({"type": "image", "url": "/media/" + path,
-                                "id": path})
-                else:
-                    thumbnail = "/api/thumbnail?filename=" + path
-                    objs.append({"type": "video", "url": "/media/" + path,
-                                 "thumbnail": thumbnail,
-                                 "id": path})
-            return json.dumps(objs)
-
-    @cherrypy.expose
-    def thumbnail(self, filename):
-        cap = cv2.VideoCapture(self.media_path + "/" + filename)
-        ret, frame = cap.read()
-        ret, jpg = cv2.imencode(".jpg", frame)
-        cap.release()
-        cherrypy.response.headers['Content-Type'] = 'image/jpeg'
-        return jpg.tostring()
+    def media(self):
+        paths = []
+        with self.node.lock:
+            paths = os.listdir(self.node.media_path)
+        paths = ['/media/' + path for path in paths]
+        objs = []
+        for path in reversed(sorted(paths)):
+            if path.endswith('jpg'):
+                objs.append({"type": "image", "url": path})
+            else:
+                objs.append({"type": "video", "url": path})
+        return json.dumps({'objs': objs})
 
     @cherrypy.expose
     def camera(self, action):
-        url = 'http://localhost:8080/snapshot?topic=/rospilot/camera/image_raw/compressed'
+        url = 'http://localhost:8080/snapshot?topic=/camera/image_raw/compressed'
         resp = urllib2.urlopen(url)
         cherrypy.response.headers['Content-Type'] = resp.info()['Content-Type']
         return resp.read()
@@ -84,17 +68,23 @@ class API(object):
 class Index(object):
     @cherrypy.expose
     def index(self):
-        return open(os.path.join(STATIC_PATH, "index.html")).read()
+        return open(os.path.join(STATIC_PATH, "index.html"))
 
 
 class WebUiNode(object):
     def __init__(self, media_path):
+        rospy.Subscriber('camera/image_raw/compressed',
+                         sensor_msgs.msg.CompressedImage, self.handle_image)
+        rospy.Service('take_picture',
+                      std_srvs.srv.Empty,
+                      self.take_picture)
         rospy.Service('glob',
                       rospilot.srv.Glob,
                       self.handle_glob)
-        rospy.Service('shutdown',
-                      std_srvs.srv.Empty,
-                      self.handle_shutdown)
+        self.lock = threading.Lock()
+        self.last_image = None
+        self.ptp_capture_image = rospy.ServiceProxy('camera/capture_image',
+                                                    rospilot.srv.CaptureImage)
         self.media_path = os.path.expanduser(media_path)
         if not os.path.exists(self.media_path):
             os.makedirs(self.media_path)
@@ -112,15 +102,31 @@ class WebUiNode(object):
                        }
         }
         index = Index()
-        index.api = API(self.media_path)
+        index.api = API(self)
         cherrypy.tree.mount(index, config=conf)
         cherrypy.log.screen = False
+
+    def handle_image(self, data):
+        with self.lock:
+            self.last_image = data
 
     def handle_glob(self, request):
         return rospilot.srv.GlobResponse(glob.glob(request.pattern))
 
-    def handle_shutdown(self, request):
-        os.system('shutdown now -P')
+    def take_picture(self, request):
+        if self.ptp_capture_image is not None:
+            image = self.ptp_capture_image().image
+        else:
+            image = self.last_image
+
+        with self.lock:
+            next_id = int(round(time.time() * 1000))
+
+            filename = "{0:05}.jpg".format(next_id)
+            path = "{0}/{1}".format(self.media_path, filename)
+
+            with open(path, 'w') as f:
+                f.write(image.data)
         return std_srvs.srv.EmptyResponse()
 
     def run(self):
