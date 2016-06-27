@@ -18,7 +18,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 '''
 
+# These must be the first two imports, as they setup sys.path
+import roslib
+roslib.load_manifest('rospilot')
 import rospilot
+#
+
 import rospy
 import rospilot.msg
 import rospilot.srv
@@ -27,7 +32,6 @@ from pymavlink import mavutil
 from geometry_msgs.msg import Vector3
 from optparse import OptionParser
 from time import time
-from glob import glob
 
 
 class MavlinkNode:
@@ -37,22 +41,15 @@ class MavlinkNode:
         if export_host:
             self.export_conn = mavutil.mavlink_connection(
                 "udp:" + export_host, input=False)
-        if device == "auto":
-            candidates = glob("/dev/ardupilot_*")
-            if len(candidates) != 1:
-                rospy.logfatal("Cannot find Ardupilot device")
-                raise Exception("Cannot find Ardupilot device")
-            device = candidates[0]
-            baudrate = int(device.split("_")[1])
         self.conn = mavutil.mavlink_connection(device, baud=baudrate)
-        self.pub_attitude = rospy.Publisher('attitude', rospilot.msg.Attitude, queue_size=1)
-        self.pub_rcstate = rospy.Publisher('rcstate', rospilot.msg.RCState, queue_size=1)
-        self.pub_gpsraw = rospy.Publisher('gpsraw', rospilot.msg.GPSRaw, queue_size=1)
-        self.pub_imuraw = rospy.Publisher('imuraw', rospilot.msg.IMURaw, queue_size=1)
+        self.pub_attitude = rospy.Publisher('attitude', rospilot.msg.Attitude)
+        self.pub_rcstate = rospy.Publisher('rcstate', rospilot.msg.RCState)
+        self.pub_gpsraw = rospy.Publisher('gpsraw', rospilot.msg.GPSRaw)
+        self.pub_imuraw = rospy.Publisher('imuraw', rospilot.msg.IMURaw)
         self.pub_basic_status = rospy.Publisher('basic_status',
-                                                rospilot.msg.BasicStatus, queue_size=1)
+                                                rospilot.msg.BasicStatus)
         self.pub_waypoints = rospy.Publisher('waypoints',
-                                             rospilot.msg.Waypoints, queue_size=1)
+                                             rospilot.msg.Waypoints)
         rospy.Subscriber("set_rc", rospilot.msg.RCState,
                          self.handle_set_rc)
         rospy.Service('set_waypoints',
@@ -82,7 +79,7 @@ class MavlinkNode:
     def handle_set_waypoints(self, message):
         if self.waypoint_read_in_progress or self.waypoint_write_in_progress:
             rospy.logwarn("Can't write waypoints because a read/write is already in progress")
-            return rospilot.srv.SetWaypointsResponse()
+            return
         self.waypoint_write_in_progress = True
         # XXX: APM seems to overwrite index 0, so insert the first waypoint
         # twice
@@ -182,8 +179,7 @@ class MavlinkNode:
                 pass
             elif msg_type == "HEARTBEAT":
                 self.pub_basic_status.publish(
-                    msg.base_mode & mavutil.mavlink.MAV_MODE_FLAG_SAFETY_ARMED,
-                    mavutil.mode_string_v10(msg))
+                    msg.base_mode & mavutil.mavlink.MAV_MODE_FLAG_SAFETY_ARMED)
             elif msg_type == "GPS_RAW_INT":
                 self.pub_gpsraw.publish(
                     msg.time_usec, msg.fix_type,
@@ -278,7 +274,7 @@ if __name__ == '__main__':
         help="allow sending control signals to autopilot", default="false")
     parser.add_option(
         "--device", dest="device",
-        default="auto", help="serial device")
+        default=None, help="serial device")
     parser.add_option(
         "--udp-export", dest="export_host",
         default=None, help="UDP host/port to send copy of MAVLink data to")
