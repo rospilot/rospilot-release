@@ -1,0 +1,49 @@
+ros-indigo-rospilot (0.1.1-1saucy) saucy; urgency=high
+
+  * Fix debian package build
+  * Contributors: Christopher Berner
+
+ -- Christopher Berner <christopherberner@gmail.com>  Wed, 27 Aug 2014 07:00:00 -0000
+
+ros-indigo-rospilot (0.1.0-1saucy) saucy; urgency=high
+
+  * Add PTP support
+  * Add init.d script to auto start rospilot
+  * Contributors: Christopher Berner
+
+ -- Christopher Berner <christopherberner@gmail.com>  Tue, 26 Aug 2014 07:00:00 -0000
+
+ros-indigo-rospilot (0.0.4-1saucy) saucy; urgency=high
+
+  * Use more standard compliant glob syntax
+  * Make .gitignore less aggressive
+  * Contributors: Christopher Berner
+
+ -- Christopher Berner <christopherberner@gmail.com>  Sat, 05 Jul 2014 07:00:00 -0000
+
+ros-indigo-rospilot (0.0.3-1saucy) saucy; urgency=high
+
+  * Change web_ui to use pkg_resources for static assets
+  * Add udev rule to installation targets
+  * Contributors: Christopher Berner
+
+ -- Christopher Berner <christopherberner@gmail.com>  Sat, 28 Jun 2014 07:00:00 -0000
+
+ros-indigo-rospilot (0.0.2-1saucy) saucy; urgency=high
+
+  * Remove pymavlink dependency
+  * Switch to a library for the HMC5883 communication
+  * Add more documentation
+  * Add support for MPU6050 to firmware
+  * Contributors: Christopher Berner
+
+ -- Christopher Berner <christopherberner@gmail.com>  Sun, 15 Jun 2014 07:00:00 -0000
+
+ros-indigo-rospilot (0.0.1-1saucy) saucy; urgency=high
+
+  * Initial release of rospilot
+  * Contributors: Christopher Berner, bordicon, cberner
+
+ -- Christopher Berner <christopherberner@gmail.com>  Mon, 02 Jun 2014 07:00:00 -0000
+
+
