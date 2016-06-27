@@ -1,3 +1,26 @@
+## rospilot (indigo) - 0.1.1-0
+
+The packages in the `rospilot` repository were released into the `indigo` distro by running `/usr/bin/bloom-release --rosdistro indigo --track indigo rospilot --edit` on `Mon, 27 Jun 2016 02:54:39 -0000`
+
+The `rospilot` package was released.
+
+Version of package(s) in repository `rospilot`:
+
+- upstream repository: https://github.com/rospilot/rospilot.git
+- release repository: https://github.com/rospilot/rospilot-release.git
+- rosdistro version: `0.1.1-2`
+- old version: `0.2.0-0`
+- new version: `0.1.1-0`
+
+Versions of tools used:
+
+- bloom version: `0.5.21`
+- catkin_pkg version: `0.2.10`
+- rosdep version: `0.11.5`
+- rosdistro version: `0.4.7`
+- vcstools version: `0.1.38`
+
+
 ## rospilot (jade) - 1.2.0-0
 
 The packages in the `rospilot` repository were released into the `jade` distro by running `/usr/bin/bloom-release rospilot --track jade --rosdistro jade` on `Sat, 14 May 2016 21:59:11 -0000`
