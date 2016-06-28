@@ -2,6 +2,11 @@
 Changelog for package rospilot
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.1.2 (2016-06-27)
+------------------
+* Reduce chart update rate to 2Hz to improve performance
+* Contributors: Christopher Berner
+
 0.1.1 (2014-08-27)
 ------------------
 * Fix debian package build
