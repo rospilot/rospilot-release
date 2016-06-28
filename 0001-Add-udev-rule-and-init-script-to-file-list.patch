@@ -1,4 +1,4 @@
-From b0feff03d6202994610f77b0373ed26a8605b342 Mon Sep 17 00:00:00 2001
+From 4140be7fe28f58e743dc5e28e1910d261faf18bd Mon Sep 17 00:00:00 2001
 From: Scott K Logan <logans@cottsay.net>
 Date: Thu, 11 Sep 2014 00:27:35 -0500
 Subject: [PATCH] Add udev rule and init script to file list
