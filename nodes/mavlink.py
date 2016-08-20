@@ -18,12 +18,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 '''
 
-# These must be the first two imports, as they setup sys.path
-import roslib
-roslib.load_manifest('rospilot')
 import rospilot
-#
-
 import rospy
 import rospilot.msg
 import rospilot.srv
@@ -32,6 +27,7 @@ from pymavlink import mavutil
 from geometry_msgs.msg import Vector3
 from optparse import OptionParser
 from time import time
+from glob import glob
 
 
 class MavlinkNode:
@@ -41,15 +37,21 @@ class MavlinkNode:
         if export_host:
             self.export_conn = mavutil.mavlink_connection(
                 "udp:" + export_host, input=False)
+        if device == "auto":
+            candidates = glob("/dev/ardupilot_*")
+            if len(candidates) != 1:
+                raise SerialException("Cannot find Ardupilot device")
+            device = candidates[0]
+            baudrate = int(device.split("_")[1])
         self.conn = mavutil.mavlink_connection(device, baud=baudrate)
-        self.pub_attitude = rospy.Publisher('attitude', rospilot.msg.Attitude)
-        self.pub_rcstate = rospy.Publisher('rcstate', rospilot.msg.RCState)
-        self.pub_gpsraw = rospy.Publisher('gpsraw', rospilot.msg.GPSRaw)
-        self.pub_imuraw = rospy.Publisher('imuraw', rospilot.msg.IMURaw)
+        self.pub_attitude = rospy.Publisher('attitude', rospilot.msg.Attitude, queue_size=1)
+        self.pub_rcstate = rospy.Publisher('rcstate', rospilot.msg.RCState, queue_size=1)
+        self.pub_gpsraw = rospy.Publisher('gpsraw', rospilot.msg.GPSRaw, queue_size=1)
+        self.pub_imuraw = rospy.Publisher('imuraw', rospilot.msg.IMURaw, queue_size=1)
         self.pub_basic_status = rospy.Publisher('basic_status',
-                                                rospilot.msg.BasicStatus)
+                                                rospilot.msg.BasicStatus, queue_size=1)
         self.pub_waypoints = rospy.Publisher('waypoints',
-                                             rospilot.msg.Waypoints)
+                                             rospilot.msg.Waypoints, queue_size=1)
         rospy.Subscriber("set_rc", rospilot.msg.RCState,
                          self.handle_set_rc)
         rospy.Service('set_waypoints',
@@ -69,6 +71,7 @@ class MavlinkNode:
         self.num_waypoints = 0
         self.waypoint_read_in_progress = False
         self.waypoint_write_in_progress = False
+        self.last_waypoint_message_time = 0
 
     def reset_rc_override(self):
         # Send 0 to reset the channel
@@ -79,13 +82,14 @@ class MavlinkNode:
     def handle_set_waypoints(self, message):
         if self.waypoint_read_in_progress or self.waypoint_write_in_progress:
             rospy.logwarn("Can't write waypoints because a read/write is already in progress")
-            return
-        self.waypoint_write_in_progress = True
-        # XXX: APM seems to overwrite index 0, so insert the first waypoint
-        # twice
-        self.waypoint_buffer = [message.waypoints[0]] + message.waypoints
+            return rospilot.srv.SetWaypointsResponse()
 
         if message.waypoints:
+            self.waypoint_write_in_progress = True
+            # XXX: APM seems to overwrite index 0, so insert the first waypoint
+            # twice
+            self.waypoint_buffer = [message.waypoints[0]] + message.waypoints
+            self.last_waypoint_message_time = time()
             self.conn.mav.mission_count_send(
                 self.conn.target_system,
                 self.conn.target_component,
@@ -129,6 +133,7 @@ class MavlinkNode:
     def request_waypoints(self):
         if self.waypoint_read_in_progress or self.waypoint_write_in_progress:
             return
+        self.last_waypoint_message_time = time()
         self.conn.mav.mission_request_list_send(
             self.conn.target_system,
             self.conn.target_component)
@@ -136,7 +141,15 @@ class MavlinkNode:
 
     def run(self):
         rospy.loginfo("Waiting for heartbeat")
-        self.conn.wait_heartbeat()
+        try:
+            while not self.conn.wait_heartbeat(blocking=False) and not rospy.is_shutdown():
+                pass
+            if rospy.is_shutdown():
+                return
+        except SerialException as e:
+            # Ignore since we're shutting down
+            return
+
         rospy.loginfo("Got heartbeat. Waiting 10secs for APM to be ready")
         rospy.sleep(10)
 
@@ -150,6 +163,9 @@ class MavlinkNode:
         while not rospy.is_shutdown():
             rospy.sleep(0.001)
             msg = self.conn.recv_match(blocking=True)
+            if time() - self.last_waypoint_message_time > 5:
+                self.waypoint_read_in_progress = False
+                self.waypoint_write_in_progress = False
             if time() - last_waypoint_read > 10:
                 last_waypoint_read = time()
                 self.request_waypoints()
@@ -179,7 +195,8 @@ class MavlinkNode:
                 pass
             elif msg_type == "HEARTBEAT":
                 self.pub_basic_status.publish(
-                    msg.base_mode & mavutil.mavlink.MAV_MODE_FLAG_SAFETY_ARMED)
+                    msg.base_mode & mavutil.mavlink.MAV_MODE_FLAG_SAFETY_ARMED,
+                    mavutil.mode_string_v10(msg))
             elif msg_type == "GPS_RAW_INT":
                 self.pub_gpsraw.publish(
                     msg.time_usec, msg.fix_type,
@@ -201,10 +218,13 @@ class MavlinkNode:
                     # Ignore the first one, because it's some magic waypoint
                     if msg.count > 1:
                         # Request the first waypoint
+                        self.last_waypoint_message_time = time()
                         self.conn.mav.mission_request_send(
                             self.conn.target_system,
                             self.conn.target_component,
                             1)
+                    else:
+                        self.waypoint_read_in_progress = False
             elif msg_type == "MISSION_REQUEST":
                 if not self.waypoint_write_in_progress:
                     rospy.logwarn("Waypoint write not in progress, but received a request for a waypoint")
@@ -216,13 +236,14 @@ class MavlinkNode:
                         # GLOBAL frame. It also is magically reset in the
                         # firmware, so this probably doesn't matter.
                         frame = mavutil.mavlink.MAV_FRAME_GLOBAL
+                    self.last_waypoint_message_time = time()
                     self.conn.mav.mission_item_send(
                         self.conn.target_system,
                         self.conn.target_component,
                         msg.seq,
                         frame,
                         mavutil.mavlink.MAV_CMD_NAV_WAYPOINT,
-                        1 if msg.seq == 0 else 0,  # Set current
+                        1 if msg.seq == 1 else 0,  # Set current
                         1,  # Auto continue after this waypoint
                         1.0,  # "reached waypoint" is +/- 1.0m
                         5.0,  # Stay for 5 secs then move on
@@ -242,6 +263,7 @@ class MavlinkNode:
                 else:
                     # All waypoints have been sent, read them back
                     self.waypoint_write_in_progress = False
+                    self.last_waypoint_message_time = time()
                     self.conn.mav.mission_request_list_send(
                         self.conn.target_system,
                         self.conn.target_component)
@@ -259,6 +281,7 @@ class MavlinkNode:
                         self.pub_waypoints.publish(self.waypoint_buffer)
                         self.waypoint_read_in_progress = False
                     else:
+                        self.last_waypoint_message_time = time()
                         self.conn.mav.mission_request_send(
                             self.conn.target_system,
                             self.conn.target_component,
@@ -274,7 +297,7 @@ if __name__ == '__main__':
         help="allow sending control signals to autopilot", default="false")
     parser.add_option(
         "--device", dest="device",
-        default=None, help="serial device")
+        default="auto", help="serial device")
     parser.add_option(
         "--udp-export", dest="export_host",
         default=None, help="UDP host/port to send copy of MAVLink data to")

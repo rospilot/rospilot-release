@@ -1,36 +1,40 @@
 <launch>
+<group ns="rospilot">
+<param name="/rospilot/mapnik_server_port" value="8086" />
 <node name="mavlink"
       pkg="rospilot"
       type="mavlink.py"
       respawn="false"
       output="screen"
-      args="--baudrate=115200 --device=/dev/ardupilot --udp-export=127.0.0.1:8866" />
+      args="--udp-export=127.0.0.1:8866" />
+<node name="odroid_show"
+      pkg="rospilot"
+      type="odroid_show.py"
+      respawn="false"
+      output="screen" />
 <node name="web_ui"
       pkg="rospilot"
       type="web_ui.py"
       respawn="false"
       output="screen"
       args="--media_path=~/.rospilot/media" />
-<node name="vlc"
+<node name="mapnik_server"
       pkg="rospilot"
-      type="ros_vlc.py"
-      respawn="false"
-      output="screen"
-      args="--media_path=~/.rospilot/media" />
-<node name="camera"
-      pkg="rospilot_deps"
-      type="raw_usb_cam_node"
+      type="mapnik_server.py"
       respawn="false"
       output="screen">
-    <param name="image_width" value="960" />
-    <param name="image_height" value="720" />
-    <param name="video_device" value="/dev/video1" />
+    <param name="tilestache_config_file" value="~/.rospilot/mapnik/ts/ts.config" />
 </node>
-<node name="mjpeg"
-      pkg="rospilot_deps"
-      type="raw_mjpeg_server"
+<node name="camera"
+      pkg="rospilot"
+      type="camera_node"
       respawn="false"
-      output="screen" />
+      output="screen">
+    <param name="camera_type" value="usb" />
+    <param name="detector_enabled" value="false" />
+    <param name="resolution" value="640x480" />
+</node>
+</group>
 <include file="$(find rosbridge_server)/launch/rosbridge_websocket.launch" > 
      <arg name="port" value="8088"/>
 </include>
