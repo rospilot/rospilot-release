@@ -2,6 +2,15 @@
 Changelog for package rospilot
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+1.3.4 (2017-03-08)
+------------------
+* Rescale PTS properly
+* Fix usage of deprecated API
+* Fix usage of invalid iterator
+* Add more logging to camera node
+* Fix data structure corruption due to race
+* Contributors: Christopher Berner
+
 1.3.3 (2016-08-24)
 ------------------
 * Fix build on Debian

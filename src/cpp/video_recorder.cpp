@@ -80,7 +80,8 @@ void SoftwareVideoRecorder::addFrame(sensor_msgs::CompressedImage *image, bool k
         AVPacket pkt;
         av_init_packet(&pkt);
 
-        pkt.pts = pts;
+        pkt.pts = av_rescale_q(pts, (AVRational){1, FPS},
+                formatContext->streams[0]->time_base);
         if (keyFrame) {
             pkt.flags |= AV_PKT_FLAG_KEY;
         }
@@ -112,14 +113,14 @@ AVStream *SoftwareVideoRecorder::createVideoStream(AVFormatContext *oc)
         ROS_ERROR("Could not alloc stream");
     }
 
+    stream->time_base.den = FPS;
+    stream->time_base.num = 1;
     c = stream->codec;
 
     c->codec_id = AV_CODEC_ID_H264;
     c->bit_rate = this->settings.bit_rate;
     c->width = this->width;
     c->height = this->height;
-    c->time_base.den = FPS;
-    c->time_base.num = 1;
     c->gop_size = this->settings.gop_size;
     // Not sure this does anything, so set the "profile" on priv_data also
     if (settings.profile == CONSTRAINED_BASELINE) {
