@@ -51,10 +51,13 @@ void H264Server::addFrame(sensor_msgs::CompressedImage *image, bool keyFrame)
     std::unique_lock<std::mutex> guard(lock);
     time_point<high_resolution_clock> currentTime = high_resolution_clock::now();
     // Purge clients that haven't accessed the stream in 10secs
-    for (auto iter = clients.begin(); iter != clients.end(); iter++) {
+    for (auto iter = clients.begin(); iter != clients.end(); ) {
         duration<double> duration = currentTime - iter->second.lastAccessTime;
         if (duration.count() > 10) {
-            clients.erase(iter);
+            iter = clients.erase(iter);
+        }
+        else {
+            iter++;
         }
     }
     // Add data to all the clients, so they can fetch at their own pace
@@ -74,11 +77,11 @@ void H264Server::addFrame(sensor_msgs::CompressedImage *image, bool keyFrame)
 MHD_Response* H264Server::readFrames(std::string client)
 {
     std::unique_lock<std::mutex> guard(lock);
-    ClientSession &session = clients[client];
-    if (session.frameData.size() == 0) {
+    if (clients[client].frameData.size() == 0) {
         // Wait up to 100ms to see if a frame arrives
         frameAvailable.wait_for(guard, duration<double>(0.1));
     }
+    ClientSession &session = clients[client];
     MHD_Response *response =
         MHD_create_response_from_buffer(session.frameData.size(),
                 (void *) session.frameData.data(),
