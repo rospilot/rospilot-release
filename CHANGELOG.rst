@@ -2,6 +2,12 @@
 Changelog for package rospilot
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+1.3.8 (2017-09-13)
+------------------
+* Remove dependency on nodejs-legacy
+  Also remove usage of vendored npm version
+* Contributors: Christopher Berner
+
 1.3.7 (2017-06-10)
 ------------------
 * Update for newest NPM
