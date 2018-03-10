@@ -1,3 +1,26 @@
+## rospilot (kinetic) - 1.4.1-0
+
+The packages in the `rospilot` repository were released into the `kinetic` distro by running `/usr/bin/bloom-release rospilot --track kinetic --rosdistro kinetic` on `Sat, 10 Mar 2018 21:49:41 -0000`
+
+The `rospilot` package was released.
+
+Version of package(s) in repository `rospilot`:
+
+- upstream repository: https://github.com/rospilot/rospilot.git
+- release repository: https://github.com/rospilot/rospilot-release.git
+- rosdistro version: `1.4.0-0`
+- old version: `1.4.0-0`
+- new version: `1.4.1-0`
+
+Versions of tools used:
+
+- bloom version: `0.6.2`
+- catkin_pkg version: `0.4.1`
+- rosdep version: `0.12.1`
+- rosdistro version: `0.6.6`
+- vcstools version: `0.1.40`
+
+
 ## rospilot (kinetic) - 1.4.0-0
 
 The packages in the `rospilot` repository were released into the `kinetic` distro by running `/usr/bin/bloom-release rospilot --track kinetic --rosdistro kinetic` on `Sun, 19 Nov 2017 22:21:49 -0000`
