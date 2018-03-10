@@ -1,0 +1,12 @@
+Source: ros-kinetic-rospilot
+Section: misc
+Priority: extra
+Maintainer: Christopher Berner <christopherberner@gmail.com>
+Build-Depends: debhelper (>= 9.0.0), libavcodec-dev, libavformat-dev, libavutil-dev, libgphoto2-dev, libjpeg-turbo8-dev, libmicrohttpd-dev, libnl-3-dev, libnl-genl-3-dev, libswscale-dev, libturbojpeg, npm, ros-kinetic-catkin, ros-kinetic-geometry-msgs, ros-kinetic-message-generation, ros-kinetic-opencv3, ros-kinetic-roscpp, ros-kinetic-roslint, ros-kinetic-sensor-msgs, ros-kinetic-std-msgs, ros-kinetic-std-srvs
+Homepage: 
+Standards-Version: 3.9.2
+
+Package: ros-kinetic-rospilot
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, curl, dnsmasq, gdal-bin, hostapd, libcurl4-openssl-dev, libnl-3-200, libnl-genl-3-200, mapnik-utils, osm2pgsql, postgresql-9.5-postgis-2.2, postgresql-contrib-9.5, postgresql-server-dev-9.5, python-cherrypy3, python-colorama, python-mapnik, python-psutil, python-serial, ros-kinetic-geometry-msgs, ros-kinetic-mavlink, ros-kinetic-message-runtime, ros-kinetic-rosbash, ros-kinetic-rosbridge-suite, ros-kinetic-roslaunch, ros-kinetic-rospy, ros-kinetic-sensor-msgs, ros-kinetic-std-msgs, ros-kinetic-std-srvs, ros-kinetic-vision-opencv, tilestache, unzip
+Description: rospilot
