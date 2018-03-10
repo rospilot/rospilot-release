@@ -862,7 +862,7 @@ static void open_device(void)
 
 usb_cam_camera_image_t *usb_cam_camera_start(
   const char* dev, usb_cam_io_method io_method,
-  usb_cam_pixel_format pixel_format, int image_width, int image_height, int framerate)
+  uint32_t pixel_format, int image_width, int image_height, int framerate)
 {
   camera_dev = (char*)calloc(1,strlen(dev)+1);
   strcpy(camera_dev,dev);
@@ -870,17 +870,16 @@ usb_cam_camera_image_t *usb_cam_camera_start(
   usb_cam_camera_image_t *image;
   io = io_method;
   bool compressed = false;
-  if(pixel_format == PIXEL_FORMAT_YUYV)
-    pixelformat = V4L2_PIX_FMT_YUYV;
-  else if(pixel_format == PIXEL_FORMAT_UYVY)
-    pixelformat = V4L2_PIX_FMT_UYVY;
-  else if(pixel_format == PIXEL_FORMAT_MJPEG) {
-    pixelformat = V4L2_PIX_FMT_MJPEG;
+  pixelformat = pixel_format;
+  if(pixel_format == V4L2_PIX_FMT_YUYV);
+    // no-op
+  else if(pixel_format == V4L2_PIX_FMT_UYVY);
+    // no-op
+  else if(pixel_format == V4L2_PIX_FMT_MJPEG) {
     init_mjpeg_decoder(image_width, image_height);
     compressed = true;
   }
-  else if(pixel_format == PIXEL_FORMAT_H264) {
-    pixelformat = V4L2_PIX_FMT_H264;
+  else if(pixel_format == V4L2_PIX_FMT_H264) {
     compressed = true;
   }
   else {
@@ -1051,11 +1050,36 @@ void usb_cam_camera_grab_raw(std::vector<unsigned char>* image, bool *keyframe)
 
 void usb_cam_camera_grab_h264(std::vector<unsigned char>* image, bool *keyframe)
 {
+  static bool driverNotBuggy = false;
   assert(io != IO_METHOD_READ);
   usb_cam_camera_grab_raw(image, keyframe);
+  if (*keyframe) {
+    driverNotBuggy = true;
+  }
+  if (driverNotBuggy) {
+    return;
+  }
+  // XXX: workaround buggy drivers, that don't set V4L2_BUF_FLAG_KEYFRAME
+  for (int i = 3; i < image->size(); i++) {
+    // NAL header is 00 00 01 0b0xxyyyyy
+    // Where xx is the 2-bit nal_ref_idc and yyyyy is the 5-bit nal_type
+    // nal_type 5 is a IDR frame
+    if ((*image)[i - 3] == 0 &&
+        (*image)[i - 2] == 0 &&
+        (*image)[i - 1] == 1 &&
+        ((*image)[i] & 0x1f) == 5) {
+      *keyframe = true;
+    }
+  }
 }
 
 void usb_cam_camera_grab_mjpeg(std::vector<unsigned char>* image)
+{
+  bool keyframe;
+  usb_cam_camera_grab_raw(image, &keyframe);
+}
+
+void usb_cam_camera_grab_raw(std::vector<unsigned char>* image)
 {
   bool keyframe;
   usb_cam_camera_grab_raw(image, &keyframe);
