@@ -105,6 +105,7 @@ private:
     int cameraHeight;
     int framerate;
     bool preferH264Capture;
+    bool preferRawCapture;
     bool detectorEnabled = false;
 
     sensor_msgs::CompressedImage image;
@@ -112,8 +113,9 @@ private:
 private:
     bool sendPreview()
     {
+        image.data.clear();
         if(camera != nullptr && camera->getLiveImage(&image)) {
-            if (!camera->isH264Encoded()) {
+            if (camera->getPixelFormat() == V4L2_PIX_FMT_MJPEG) {
                 imagePub.publish(image);
                 jpegDecoder->decodeInPlace(&image);
             }
@@ -172,7 +174,7 @@ private:
                 liveH264Settings.width,
                 liveH264Settings.height,
                 pixelFormat);
-        if (camera->isH264Encoded()) {
+        if (camera->getPixelFormat() == V4L2_PIX_FMT_H264) {
             // TODO: can we still do resizing?
             liveStream = new BackgroundImageSink(
                     &h264Server,
@@ -194,7 +196,7 @@ private:
             delete recorder;
         }
 
-        if (camera->isH264Encoded()) {
+        if (camera->getPixelFormat() == V4L2_PIX_FMT_H264) {
             recorder = new BackgroundImageSink(
                     videoRecorder,
                     nullptr,
@@ -281,6 +283,7 @@ private:
         node.param("framerate", framerate, 30);
         // NOTE: when enabled live stream is always at native resolution (no resizing done)
         node.param("h264_capture", preferH264Capture, false);
+        node.param("raw_capture", preferRawCapture, false);
         node.param("media_path", mediaPath, std::string("~/.rospilot/media"));
         wordexp_t p;
         wordexp(mediaPath.c_str(), &p, 0);
@@ -302,10 +305,13 @@ private:
             return new PtpCamera();
         }
         else if (cameraType == "usb") {
-            ROS_INFO("Requesting camera res %dx%d, fps %d, h264 capture: %s",
-                    cameraWidth, cameraHeight, framerate, preferH264Capture ? "yes" : "no");
+            ROS_INFO("Requesting camera res %dx%d, fps %d, h264 capture: %s, raw capture: %s",
+                    cameraWidth, cameraHeight, framerate,
+                    preferH264Capture ? "yes" : "no",
+                    preferRawCapture ? "yes" : "no");
             UsbCamera *camera = new UsbCamera(videoDevice,
-                    cameraWidth, cameraHeight, framerate, preferH264Capture);
+                    cameraWidth, cameraHeight, framerate,
+                    preferH264Capture, preferRawCapture);
             // Read the width and height, since the camera may have altered it to
             // something it supports
             cameraWidth = camera->getWidth();
