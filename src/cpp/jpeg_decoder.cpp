@@ -27,6 +27,7 @@ extern "C" {
 #if LIBAVCODEC_VERSION_INT >= AV_VERSION_INT(55,28,1)
 #include <libavutil/frame.h>
 #endif
+#include <libavutil/imgutils.h>
 }
 
 #if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(55,28,1)
@@ -50,11 +51,17 @@ bool FFmpegJpegDecoder::decodeInPlace(sensor_msgs::CompressedImage *image)
 
     packet.size = image->data.size();
     packet.data = (unsigned char*) image->data.data();
-    int gotPicture;
-    int decodedLength = avcodec_decode_video2(context, sourceFrame, &gotPicture, &packet);
-
-    if (decodedLength <= 0) {
-        ROS_ERROR("Error decoding frame: %d", decodedLength);
+    if (avcodec_send_packet(context, &packet) != 0) {
+        ROS_ERROR("Error decoding frame");
+        return false;
+    }
+    int receiveReturnCode = avcodec_receive_frame(context, sourceFrame);
+    if (receiveReturnCode != 0 && receiveReturnCode != AVERROR(EAGAIN)) {
+        ROS_ERROR("Error decoding frame");
+        return false;
+    }
+    if (receiveReturnCode == AVERROR(EAGAIN)) {
+        // Frame decoded yet. Must send more packets.
         return false;
     }
 
@@ -64,25 +71,32 @@ bool FFmpegJpegDecoder::decodeInPlace(sensor_msgs::CompressedImage *image)
             outputFrame->data, outputFrame->linesize );
     sws_freeContext(video_sws);  
     
-    int outputSize = avpicture_get_size(outputPixelFormat, width, height);
+    int outputSize = av_image_get_buffer_size(outputPixelFormat, width, height, 1);
     if (outputSize > outputBufferSize) {
         delete[] outputBuffer;
         outputBuffer = new uint8_t[outputSize];
         outputBufferSize = outputSize;
     }
 
-    int size = avpicture_layout((AVPicture *) outputFrame, outputPixelFormat, width, height,
-            outputBuffer, outputSize);
+    int size = av_image_copy_to_buffer(
+            outputBuffer,
+            outputSize,
+            outputFrame->data,
+            outputFrame->linesize,
+            outputPixelFormat,
+            width,
+            height,
+            1);
     if (size != outputSize) {
-        ROS_ERROR("avpicture_layout failed: %d",size);
+        ROS_ERROR("av_image_copy_to_buffer failed: %d",size);
         return false;
     }
 
     image->data.clear();
-    if (outputPixelFormat == PIX_FMT_YUV420P) {
+    if (outputPixelFormat == AV_PIX_FMT_YUV420P) {
         image->format = "yuv420p";
     }
-    else if (outputPixelFormat == PIX_FMT_YUVJ422P) {
+    else if (outputPixelFormat == AV_PIX_FMT_YUVJ422P) {
         image->format = "yuvj422p";
     }
     else {
@@ -94,7 +108,7 @@ bool FFmpegJpegDecoder::decodeInPlace(sensor_msgs::CompressedImage *image)
     return true;
 }
 
-FFmpegJpegDecoder::FFmpegJpegDecoder(int width, int height, PixelFormat outputPixelFormat)
+FFmpegJpegDecoder::FFmpegJpegDecoder(int width, int height, AVPixelFormat outputPixelFormat)
 {
     avcodec_register_all();
     this->width = width;
@@ -117,13 +131,16 @@ FFmpegJpegDecoder::FFmpegJpegDecoder(int width, int height, PixelFormat outputPi
     sourceFrame = av_frame_alloc();
     outputFrame = av_frame_alloc();
 
-    avpicture_alloc((AVPicture *)outputFrame, outputPixelFormat, width, height);
+    outputFrame->format = outputPixelFormat;
+    outputFrame->width = width;
+    outputFrame->height = height;
+    av_frame_get_buffer(outputFrame, 1);
 
     context->codec_id = decoder->id;
     context->width = width;
     context->height = height;
 
-    context->pix_fmt = PIX_FMT_YUV422P;
+    context->pix_fmt = AV_PIX_FMT_YUV422P;
     context->codec_type = AVMEDIA_TYPE_VIDEO;
 
     if (avcodec_open2(context, decoder, nullptr) < 0) {
@@ -197,7 +214,7 @@ bool TurboJpegDecoder::decodeInPlace(sensor_msgs::CompressedImage *image)
     return true;   
 }
 
-TurboJpegDecoder::TurboJpegDecoder(int width, int height, PixelFormat outputPixelFormat)
+TurboJpegDecoder::TurboJpegDecoder(int width, int height, AVPixelFormat outputPixelFormat)
 {
     handle = tjInitDecompress();
     this->width = width;

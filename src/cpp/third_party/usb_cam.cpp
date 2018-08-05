@@ -60,6 +60,7 @@ extern "C" {
 #if LIBAVCODEC_VERSION_INT >= AV_VERSION_INT(55,28,1)
 #include <libavutil/frame.h>
 #endif
+#include <libavutil/imgutils.h>
 }
 
 #if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(55,28,1)
@@ -305,19 +306,22 @@ static int init_mjpeg_decoder(int image_width, int image_height)
   avframe_camera = av_frame_alloc();
   avframe_rgb = av_frame_alloc();
 
-  avpicture_alloc((AVPicture *)avframe_rgb, PIX_FMT_RGB24, image_width, image_height);
+  avframe_rgb->format = AV_PIX_FMT_RGB24;
+  avframe_rgb->width = image_width;
+  avframe_rgb->height = image_height;
+  av_frame_get_buffer(avframe_rgb, 1);
 
   avcodec_context->codec_id = AV_CODEC_ID_MJPEG;
   avcodec_context->width = image_width;
   avcodec_context->height = image_height;
 
 #if LIBAVCODEC_VERSION_MAJOR > 52
-  avcodec_context->pix_fmt = PIX_FMT_YUV422P;
+  avcodec_context->pix_fmt = AV_PIX_FMT_YUV422P;
   avcodec_context->codec_type = AVMEDIA_TYPE_VIDEO;
 #endif
 
-  avframe_camera_size = avpicture_get_size(PIX_FMT_YUV422P, image_width, image_height);
-  avframe_rgb_size = avpicture_get_size(PIX_FMT_RGB24, image_width, image_height);
+  avframe_camera_size = av_image_get_buffer_size(AV_PIX_FMT_YUV422P, image_width, image_height, 1);
+  avframe_rgb_size = av_image_get_buffer_size(AV_PIX_FMT_RGB24, image_width, image_height, 1);
 
   /* open it */
   if (avcodec_open2(avcodec_context, avcodec, &avoptions) < 0)
@@ -331,8 +335,6 @@ static int init_mjpeg_decoder(int image_width, int image_height)
 static void
 mjpeg2rgb(char *MJPEG, int len, char *RGB, int NumPixels)
 {
-  int got_picture;
-
   memset(RGB, 0, avframe_rgb_size);
 
 #if LIBAVCODEC_VERSION_MAJOR > 52
@@ -342,34 +344,51 @@ mjpeg2rgb(char *MJPEG, int len, char *RGB, int NumPixels)
   
   avpkt.size = len;
   avpkt.data = (unsigned char*)MJPEG;
-  decoded_len = avcodec_decode_video2(avcodec_context, avframe_camera, &got_picture, &avpkt);
-
-  if (decoded_len < 0) {
+  if (avcodec_send_packet(avcodec_context, &avpkt) != 0) {
       ROS_ERROR("Error while decoding frame.\n");
       return;
   }
+  int receiveReturnCode = avcodec_receive_frame(avcodec_context, avframe_camera);
+  if (receiveReturnCode != 0 && receiveReturnCode != AVERROR(EAGAIN)) {
+      ROS_ERROR("Error while decoding frame.\n");
+      return;
+  }
+  if (receiveReturnCode == AVERROR(EAGAIN)) {
+      ROS_ERROR("Webcam: expected picture but didn't get it...\n");
+      return;
+  }
 #else
+  int got_picture;
+
   avcodec_decode_video(avcodec_context, avframe_camera, &got_picture, (uint8_t *) MJPEG, len);
-#endif
 
   if (!got_picture) {
     ROS_ERROR("Webcam: expected picture but didn't get it...\n");
     return;
   }
+#endif
 
   int xsize = avcodec_context->width;
   int ysize = avcodec_context->height;
-  int pic_size = avpicture_get_size(avcodec_context->pix_fmt, xsize, ysize);
+  int pic_size = av_image_get_buffer_size(avcodec_context->pix_fmt, xsize, ysize, 1);
   if (pic_size != avframe_camera_size) {
     ROS_ERROR("outbuf size mismatch.  pic_size: %d bufsize: %d\n",pic_size,avframe_camera_size);
     return;
   }
 
-  video_sws = sws_getContext( xsize, ysize, avcodec_context->pix_fmt, xsize, ysize, PIX_FMT_RGB24, SWS_BILINEAR, NULL, NULL, NULL);
+  video_sws = sws_getContext( xsize, ysize, avcodec_context->pix_fmt, xsize, ysize, AV_PIX_FMT_RGB24, SWS_BILINEAR, NULL, NULL, NULL);
   sws_scale(video_sws, avframe_camera->data, avframe_camera->linesize, 0, ysize, avframe_rgb->data, avframe_rgb->linesize );
   sws_freeContext(video_sws);  
 
-  int size = avpicture_layout((AVPicture *) avframe_rgb, PIX_FMT_RGB24, xsize, ysize, (uint8_t *)RGB, avframe_rgb_size);
+  int size = av_image_copy_to_buffer(
+          (uint8_t *) RGB,
+          avframe_rgb_size,
+          avframe_rgb->data,
+          avframe_rgb->linesize,
+          AV_PIX_FMT_RGB24,
+          xsize,
+          ysize,
+          1);
   if (size != avframe_rgb_size) {
     ROS_ERROR("webcam: avpicture_layout error: %d\n",size);
     return;

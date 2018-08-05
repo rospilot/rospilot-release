@@ -29,6 +29,7 @@ extern "C" {
 #if LIBAVCODEC_VERSION_INT >= AV_VERSION_INT(55,28,1)
 #include <libavutil/frame.h>
 #endif
+#include <libavutil/imgutils.h>
 }
 
 #if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(55,28,1)
@@ -58,13 +59,19 @@ bool SoftwareH264Encoder::encodeInPlace(sensor_msgs::CompressedImage *image,
     av_init_packet(&packet);
     packet.data = new uint8_t[image->data.size()];
     packet.size = image->data.size();
-    int gotPacket;
-    if (avcodec_encode_video2(context, &packet, sourceFrame, &gotPacket) != 0) {
+    if (avcodec_send_frame(context, sourceFrame) != 0) {
         ROS_ERROR("Error during h264 encoding");
         delete[] packet.data;
         return false;
     }
-    if (gotPacket != 1) {
+    int receiveReturnCode = avcodec_receive_packet(context, &packet);
+    if (receiveReturnCode != 0 && receiveReturnCode != AVERROR(EAGAIN)) {
+        ROS_ERROR("Error during h264 encoding");
+        delete[] packet.data;
+        return false;
+    }
+    if (receiveReturnCode == AVERROR(EAGAIN)) {
+        // No packet received. Must send more frames.
         delete[] packet.data;
         return false;
     }
@@ -91,9 +98,9 @@ AVFrame *SoftwareH264Encoder::allocFrame()
     int size;
 
     frame = av_frame_alloc();
-    size = avpicture_get_size(pixelFormat, width, height);
+    size = av_image_get_buffer_size(pixelFormat, width, height, 1);
     buf = (uint8_t*) av_malloc(size);
-    avpicture_fill((AVPicture *)frame, buf, pixelFormat, width, height);
+    av_image_fill_arrays(frame->data, frame->linesize, buf, pixelFormat, width, height, 1);
     return frame;
 }
 
@@ -102,7 +109,7 @@ SoftwareH264Encoder::SoftwareH264Encoder(H264Settings settings)
     avcodec_register_all();
     this->width = settings.width;
     this->height = settings.height;
-    this->pixelFormat = PIX_FMT_YUV420P;
+    this->pixelFormat = AV_PIX_FMT_YUV420P;
     
     encoder = avcodec_find_encoder(AV_CODEC_ID_H264);
     if (!encoder) {

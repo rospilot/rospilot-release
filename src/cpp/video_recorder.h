@@ -47,6 +47,7 @@ private:
     bool recording = false;
     AVFormatContext *formatContext;
     AVStream *videoStream;
+    AVCodecContext *codecContext;
     time_point<high_resolution_clock> firstFrameTime;
     int lastPTS = 0;
     bool foundKeyframe = false;
@@ -54,12 +55,12 @@ private:
     std::string filename;
     int width;
     int height;
-    PixelFormat pixelFormat;
+    AVPixelFormat pixelFormat;
     H264Settings settings;
     std::mutex lock;
 
 public:
-    SoftwareVideoRecorder(PixelFormat pixelFormat, H264Settings settings, std::string mediaPath);
+    SoftwareVideoRecorder(AVPixelFormat pixelFormat, H264Settings settings, std::string mediaPath);
     
     // thread-safe
     void addFrame(sensor_msgs::CompressedImage *image, bool keyFrame) override;

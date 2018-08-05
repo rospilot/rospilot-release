@@ -39,7 +39,7 @@ namespace rospilot {
 
 using namespace std::chrono;
 
-SoftwareVideoRecorder::SoftwareVideoRecorder(PixelFormat pixelFormat, H264Settings settings, std::string mediaPath)
+SoftwareVideoRecorder::SoftwareVideoRecorder(AVPixelFormat pixelFormat, H264Settings settings, std::string mediaPath)
 {
     av_register_all();
     this->width = settings.width;
@@ -80,9 +80,9 @@ void SoftwareVideoRecorder::addFrame(sensor_msgs::CompressedImage *image, bool k
     if (image->data.size() > 0) {
         AVPacket pkt;
         av_init_packet(&pkt);
-
-        pkt.pts = av_rescale_q(pts, (AVRational){1, FPS},
+        pkt.dts = av_rescale_q(pts, (AVRational){1, FPS},
                 formatContext->streams[0]->time_base);
+        pkt.pts = pkt.dts;
         if (keyFrame) {
             pkt.flags |= AV_PKT_FLAG_KEY;
         }
@@ -100,7 +100,6 @@ void SoftwareVideoRecorder::addFrame(sensor_msgs::CompressedImage *image, bool k
 
 AVStream *SoftwareVideoRecorder::createVideoStream(AVFormatContext *oc)
 {
-    AVCodecContext *c;
     AVStream *stream;
     AVCodec *codec;
 
@@ -114,36 +113,39 @@ AVStream *SoftwareVideoRecorder::createVideoStream(AVFormatContext *oc)
         ROS_ERROR("Could not alloc stream");
     }
 
+    codecContext = avcodec_alloc_context3(codec);
+
     stream->time_base.den = FPS;
     stream->time_base.num = 1;
-    c = stream->codec;
+    codecContext->time_base = stream->time_base;
 
-    c->codec_id = AV_CODEC_ID_H264;
-    c->bit_rate = this->settings.bit_rate;
-    c->width = this->width;
-    c->height = this->height;
-    c->gop_size = this->settings.gop_size;
+    codecContext->bit_rate = this->settings.bit_rate;
+    codecContext->width = this->width;
+    codecContext->height = this->height;
+    codecContext->gop_size = this->settings.gop_size;
     // Not sure this does anything, so set the "profile" on priv_data also
     if (settings.profile == CONSTRAINED_BASELINE) {
-        c->profile = FF_PROFILE_H264_CONSTRAINED_BASELINE;
-        av_opt_set(c->priv_data, "profile", "baseline", AV_OPT_SEARCH_CHILDREN);
+        codecContext->profile = FF_PROFILE_H264_CONSTRAINED_BASELINE;
+        av_opt_set(codecContext->priv_data, "profile", "baseline", AV_OPT_SEARCH_CHILDREN);
     }
     else if (settings.profile == HIGH) {
-        c->profile = FF_PROFILE_H264_HIGH;
-        av_opt_set(c->priv_data, "profile", "high", AV_OPT_SEARCH_CHILDREN);
+        codecContext->profile = FF_PROFILE_H264_HIGH;
+        av_opt_set(codecContext->priv_data, "profile", "high", AV_OPT_SEARCH_CHILDREN);
     }
     else {
         ROS_ERROR("Unknown H264 profile");
     }
     if (settings.zero_latency) {
-        av_opt_set(c->priv_data, "tune", "zerolatency", AV_OPT_SEARCH_CHILDREN);
-        av_opt_set(c->priv_data, "preset", "ultrafast", AV_OPT_SEARCH_CHILDREN);
+        av_opt_set(codecContext->priv_data, "tune", "zerolatency", AV_OPT_SEARCH_CHILDREN);
+        av_opt_set(codecContext->priv_data, "preset", "ultrafast", AV_OPT_SEARCH_CHILDREN);
     }
-    c->level = this->settings.level;
-    c->pix_fmt = this->pixelFormat;
-    c->flags |= CODEC_FLAG_GLOBAL_HEADER;
+    codecContext->level = this->settings.level;
+    codecContext->pix_fmt = this->pixelFormat;
+    codecContext->flags |= CODEC_FLAG_GLOBAL_HEADER;
 
-    if (avcodec_open2(c, codec, nullptr) < 0) {
+    avcodec_parameters_from_context(stream->codecpar, codecContext);
+
+    if (avcodec_open2(codecContext, codec, nullptr) < 0) {
         ROS_ERROR("could not open codec");
     }
 
@@ -187,7 +189,10 @@ bool SoftwareVideoRecorder::start(const char *name)
         return false;
     }
 
-    avformat_write_header(formatContext, nullptr);
+    if(avformat_write_header(formatContext, nullptr) < 0) {
+        ROS_FATAL("Failed to write video output header");
+        return false;
+    }
     foundKeyframe = false;
     recording = true;
     ROS_INFO("Start recording output to %s as %s with vcodec %d, short name = %s", 
@@ -203,13 +208,10 @@ bool SoftwareVideoRecorder::stop()
     std::lock_guard<std::mutex> guard(lock);
     recording = false;
     av_write_trailer(formatContext);
-    avcodec_close(videoStream->codec);
-    for (int i = 0; i < formatContext->nb_streams; i++) {
-        av_freep(&formatContext->streams[i]->codec);
-        av_freep(&formatContext->streams[i]);
-    }
-    avio_close(formatContext->pb);
-    av_free(formatContext);
+    AVIOContext *pb = formatContext->pb;
+    avcodec_free_context(&codecContext);
+    avformat_free_context(formatContext);
+    avio_close(pb);
     ROS_INFO("Finializing video file: %s", filename.c_str());
     if(rename(tempFilename.c_str(), filename.c_str()) != 0) {
         ROS_ERROR("Error moving temp file: %s", strerror(errno));
