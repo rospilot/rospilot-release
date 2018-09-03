@@ -2,6 +2,12 @@
 Changelog for package rospilot
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+1.5.1 (2018-09-03)
+------------------
+* Fix wlan configuration on Bionic
+* Fix Systemd service to work on Melodic
+* Contributors: Christopher Berner
+
 1.5.0 (2018-08-04)
 ------------------
 * Upgrade to Angular 5.2.11
