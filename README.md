@@ -1,3 +1,26 @@
+## rospilot (melodic) - 1.5.2-0
+
+The packages in the `rospilot` repository were released into the `melodic` distro by running `/usr/bin/bloom-release rospilot --rosdistro melodic` on `Sat, 22 Sep 2018 16:44:19 -0000`
+
+The `rospilot` package was released.
+
+Version of package(s) in repository `rospilot`:
+
+- upstream repository: https://github.com/rospilot/rospilot.git
+- release repository: https://github.com/rospilot/rospilot-release.git
+- rosdistro version: `1.5.1-0`
+- old version: `1.5.1-0`
+- new version: `1.5.2-0`
+
+Versions of tools used:
+
+- bloom version: `0.6.6`
+- catkin_pkg version: `0.4.8`
+- rosdep version: `0.12.2`
+- rosdistro version: `0.6.9`
+- vcstools version: `0.1.40`
+
+
 ## rospilot (melodic) - 1.5.1-0
 
 The packages in the `rospilot` repository were released into the `melodic` distro by running `/usr/bin/bloom-release rospilot --rosdistro melodic` on `Mon, 03 Sep 2018 19:53:45 -0000`
