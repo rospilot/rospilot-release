@@ -90,17 +90,17 @@ bool ExynosMultiFormatCodecH264Encoder::encodeInPlace(sensor_msgs::CompressedIma
         // This ensures that those frames are completely independent for streaming
         // and in case the receiver (recorder) picks up in the middle of a stream
         if (*keyFrame) {
-            image->data.insert(image->data.begin(), sps.begin(), sps.end());
             image->data.insert(image->data.begin(), pps.begin(), pps.end());
+            image->data.insert(image->data.begin(), sps.begin(), sps.end());
         }
     }
 
     return outPriv->readSuccessful;
 }
 
-int nextNALStart(std::vector<uint8_t> &data, int start, uint8_t *nalType)
+int nextNALStart(std::vector<uint8_t> &data, size_t start, uint8_t *nalType)
 {
-    for (int i = start; i + 2 < data.size(); i++) {
+    for (size_t i = start; i + 2 < data.size(); i++) {
         if (data[i] == 0 && data[i + 1] == 0 && data[i + 2] == 1) {
             if (i + 3 < data.size()) {
                 *nalType = data[i + 3];
@@ -120,7 +120,7 @@ int nextNALStart(std::vector<uint8_t> &data, int start, uint8_t *nalType)
 void ExynosMultiFormatCodecH264Encoder::tryExtractSPSandPPS(std::vector<uint8_t> &data)
 {
     uint8_t nalType;
-    for (int i = nextNALStart(data, 0, &nalType); i != -1 && i + 3 < data.size();) {
+    for (int i = nextNALStart(data, 0, &nalType); i != -1 && i + 3 < (int) data.size();) {
         uint8_t nextNalType;
         int j = nextNALStart(data, i + 4, &nextNalType);
         if (j == -1) {
@@ -146,7 +146,7 @@ static int copyToMFCBuffer(io_dev *dev, int nbufs, char **bufs, int *lens)
         ROS_ERROR("Expected 2 buffers and NV12 format to write to, got %d buffers", nbufs);
         return -1;
     }
-    if (image->size() > lens[0] + lens[1]) {
+    if ((int) image->size() > lens[0] + lens[1]) {
         ROS_ERROR("Image buffer too large. Trying to copy %d into %d + %d", 
                 (int) image->size(), lens[0], lens[1]);
         return -1;
