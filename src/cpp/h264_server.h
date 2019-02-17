@@ -53,6 +53,9 @@ private:
     std::condition_variable frameAvailable;
     std::mutex lock;
     std::map<std::string, ClientSession> clients;
+    std::vector<uint8_t> latestKeyFrame;
+    std::vector<uint8_t> sps;
+    std::vector<uint8_t> pps;
     MHD_Daemon *daemon = nullptr;
 
 public:
@@ -61,6 +64,12 @@ public:
 
     // thread-safe
     MHD_Response* readFrames(std::string client);
+
+    // thread-safe
+    MHD_Response* readSPSAndPPS();
+
+    // thread-safe
+    void setSPSAndPPS(std::vector<uint8_t> sps_data, std::vector<uint8_t> pps_data);
 
     // thread-safe
     void start();
