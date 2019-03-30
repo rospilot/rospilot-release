@@ -1,0 +1,12 @@
+Source: ros-melodic-rospilot
+Section: misc
+Priority: extra
+Maintainer: Christopher Berner <christopherberner@gmail.com>
+Build-Depends: debhelper (>= 9.0.0), ffmpeg, libavcodec-dev, libavformat-dev, libavutil-dev, libgphoto2-dev, libmicrohttpd-dev, libnl-3-dev, libnl-genl-3-dev, libopencv-dev, libswscale-dev, libturbojpeg0-dev, ros-melodic-catkin, ros-melodic-geometry-msgs, ros-melodic-message-generation, ros-melodic-roscpp, ros-melodic-roslint, ros-melodic-sensor-msgs, ros-melodic-std-msgs, ros-melodic-std-srvs
+Homepage: 
+Standards-Version: 3.9.2
+
+Package: ros-melodic-rospilot
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, curl, dnsmasq, gdal-bin, hostapd, libcurl4-openssl-dev, libnl-3-200, libnl-genl-3-200, mapnik-utils, osm2pgsql, postgresql-10-postgis-2.4, postgresql-contrib, postgresql-server-dev-all, python-cherrypy3, python-colorama, python-mapnik, python-psutil, python-serial, ros-melodic-geometry-msgs, ros-melodic-mavlink, ros-melodic-message-runtime, ros-melodic-rosbash, ros-melodic-rosbridge-suite, ros-melodic-roslaunch, ros-melodic-rospy, ros-melodic-sensor-msgs, ros-melodic-std-msgs, ros-melodic-std-srvs, ros-melodic-vision-opencv, tilestache, unzip, wget
+Description: rospilot
