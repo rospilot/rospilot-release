@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 '''
 Copyright 2012 the original author or authors.
@@ -81,6 +81,7 @@ class MapnikNode(object):
         rospy.loginfo(os.getcwd())
         rospy.spin()
         cherrypy.engine.exit()
+
 
 if __name__ == '__main__':
     node = MapnikNode()

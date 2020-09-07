@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 '''
 Copyright 2012 the original author or authors.
@@ -123,6 +123,7 @@ class WebUiNode(object):
         cherrypy.engine.start()
         rospy.spin()
         cherrypy.engine.exit()
+
 
 if __name__ == '__main__':
     parser = OptionParser("web_ui.py <options>")

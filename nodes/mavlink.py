@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 '''
 Copyright 2012 the original author or authors.
@@ -309,6 +309,7 @@ class MavlinkNode:
                         msg.clipping_0,
                         msg.clipping_1,
                         msg.clipping_2]
+
 
 if __name__ == '__main__':
     parser = OptionParser("rospilot.py <options>")

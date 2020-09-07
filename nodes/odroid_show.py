@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 '''
 Copyright 2012 the original author or authors.
@@ -78,6 +78,7 @@ class OdroidShowNode(object):
             if 'hostapd' in p.name:
                 return True
         return False
+
 
 if __name__ == '__main__':
     while not path.exists("/dev/odroid_show"):

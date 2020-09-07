@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.0.2)
 project(rospilot)
 
 ## Find catkin macros and libraries
@@ -6,7 +6,7 @@ project(rospilot)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS geometry_msgs sensor_msgs std_msgs message_generation roslint roscpp)
 find_package(PkgConfig REQUIRED)
-find_package(OpenCV 3 REQUIRED)
+find_package(OpenCV 4 REQUIRED)
 pkg_check_modules(libgphoto2 REQUIRED libgphoto2)
 pkg_check_modules(libavcodec REQUIRED libavcodec)
 pkg_check_modules(libavformat REQUIRED libavformat)
