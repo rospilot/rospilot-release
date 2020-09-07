@@ -1,3 +1,26 @@
+## rospilot (noetic) - 1.6.0-1
+
+The packages in the `rospilot` repository were released into the `noetic` distro by running `/usr/bin/bloom-release rospilot --track noetic --rosdistro noetic --new-track` on `Mon, 07 Sep 2020 03:28:16 -0000`
+
+The `rospilot` package was released.
+
+Version of package(s) in repository `rospilot`:
+
+- upstream repository: https://github.com/rospilot/rospilot.git
+- release repository: unknown
+- rosdistro version: `null`
+- old version: `null`
+- new version: `1.6.0-1`
+
+Versions of tools used:
+
+- bloom version: `0.9.8`
+- catkin_pkg version: `0.4.22`
+- rosdep version: `0.19.0`
+- rosdistro version: `0.8.2`
+- vcstools version: `0.1.42`
+
+
 ## rospilot (melodic) - 1.5.6-0
 
 The packages in the `rospilot` repository were released into the `melodic` distro by running `/usr/bin/bloom-release rospilot --rosdistro melodic` on `Sun, 31 Mar 2019 06:17:36 -0000`
