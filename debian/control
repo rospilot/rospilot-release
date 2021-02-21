@@ -1,0 +1,12 @@
+Source: ros-noetic-rospilot
+Section: misc
+Priority: optional
+Maintainer: Christopher Berner <christopherberner@gmail.com>
+Build-Depends: debhelper (>= 9.0.0), ffmpeg, libavcodec-dev, libavformat-dev, libavutil-dev, libgphoto2-dev, libmicrohttpd-dev, libnl-3-dev, libnl-genl-3-dev, libopencv-dev, libswscale-dev, libturbojpeg0-dev, python3-setuptools, ros-noetic-catkin, ros-noetic-geometry-msgs, ros-noetic-message-generation, ros-noetic-roscpp, ros-noetic-roslint, ros-noetic-sensor-msgs, ros-noetic-std-msgs, ros-noetic-std-srvs
+Homepage: 
+Standards-Version: 3.9.2
+
+Package: ros-noetic-rospilot
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, dnsmasq, hostapd, libnl-3-200, libnl-genl-3-200, python3-cherrypy3, python3-colorama, python3-psutil, python3-serial, ros-noetic-geometry-msgs, ros-noetic-mavlink, ros-noetic-message-runtime, ros-noetic-rosbash, ros-noetic-rosbridge-suite, ros-noetic-roslaunch, ros-noetic-rospy, ros-noetic-sensor-msgs, ros-noetic-std-msgs, ros-noetic-std-srvs, ros-noetic-vision-opencv
+Description: rospilot
